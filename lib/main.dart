@@ -4,41 +4,50 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:hackernews/model/article.dart';
 import 'package:hackernews/src/hn_bloc.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'src/hn_bloc.dart';
 
 void main() async {
-  final hnBloc = HackerNewsBloc();
-  runApp(MyApp(bloc: hnBloc));
+  runApp(MyApp());
 }
 
-class MyApp extends StatelessWidget {
-  final HackerNewsBloc bloc;
+class MyApp extends StatefulWidget {
+  final HackerNewsBloc bloc = HackerNewsBloc();
 
-  const MyApp({Key key, this.bloc}) : super(key: key);
+  @override
+  _MyAppState createState() => _MyAppState();
+}
 
-  // This widget is the root of your application.
+class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Hacker News',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        visualDensity: VisualDensity.adaptivePlatformDensity,
-      ),
-      home: MyHomePage(
+    return Provider(
+      create: (context) => widget.bloc,
+      child: MaterialApp(
         title: 'Flutter Hacker News',
-        bloc: bloc,
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          primarySwatch: Colors.blue,
+          visualDensity: VisualDensity.adaptivePlatformDensity,
+        ),
+        home: MyHomePage(
+          title: 'Flutter Hacker News',
+        ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    widget.bloc.dispose();
+    super.dispose();
   }
 }
 
 class MyHomePage extends StatefulWidget {
-  final HackerNewsBloc bloc;
-  MyHomePage({Key key, this.title, this.bloc}) : super(key: key);
+  MyHomePage({Key key, this.title}) : super(key: key);
 
   final String title;
 
@@ -52,15 +61,16 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final bloc = Provider.of<HackerNewsBloc>(context);
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
         leading: LoadingInfo(
-          loadingStream: widget.bloc.isLoading,
+          loadingStream: bloc.isLoading,
         ),
       ),
       body: StreamBuilder<UnmodifiableListView<Article>>(
-          stream: widget.bloc.articles,
+          stream: bloc.articles,
           initialData: UnmodifiableListView<Article>([]),
           builder: (context, snapshot) {
             if (snapshot.hasError) {
@@ -84,7 +94,7 @@ class _MyHomePageState extends State<MyHomePage> {
           setState(() {
             selectedTab = value;
           });
-          widget.bloc.storiesType.add(
+          bloc.storiesType.add(
               value == 0 ? StoriesType.topStories : StoriesType.newStories);
         },
         items: [
@@ -106,37 +116,45 @@ class _MyHomePageState extends State<MyHomePage> {
     super.dispose();
   }
 
-  Widget _buildItem(Article article) => Padding(
-        key: Key(article.text),
-        padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 8.0),
-        child: ExpansionTile(
-          children: <Widget>[
-            Padding(
-              padding:
-                  const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: <Widget>[
-                  Text(
-                    "By: ${article.by}",
-                    style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.launch),
-                    onPressed: () {
-                      _onTapped(article.url);
-                    },
-                  )
-                ],
-              ),
-            ),
-          ],
-          title: Text(
-            article.title ?? "No Title Found",
-            style: TextStyle(fontSize: 18),
-          ),
-        ),
+  Widget _buildItem(Article article) //=> Text('Debug');
+      =>
+      ListTile(
+        onTap: () => _onTapped(article.url),
+        title: Text(article.title ?? 'No Title Found'),
+        subtitle: Text('By: ${article.by}'),
+        trailing: Icon(Icons.launch),
       );
+//      Padding(
+//        key: Key(article.text),
+//        padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 8.0),
+//        child: ExpansionTile(
+//          children: <Widget>[
+//            Padding(
+//              padding:
+//                  const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
+//              child: Row(
+//                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//                children: <Widget>[
+//                  Text(
+//                    "By: ${article.by}",
+//                    style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+//                  ),
+//                  IconButton(
+//                    icon: Icon(Icons.launch),
+//                    onPressed: () {
+//                      _onTapped(article.url);
+//                    },
+//                  )
+//                ],
+//              ),
+//            ),
+//          ],
+//          title: Text(
+//            article.title ?? "No Title Found",
+//            style: TextStyle(fontSize: 18),
+//          ),
+//        ),
+//      );
 
   _onTapped(String url) async {
     String fUrl = url;

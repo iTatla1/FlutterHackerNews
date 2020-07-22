@@ -19,6 +19,10 @@ class HackerNewsBloc {
   Sink<StoriesType> get storiesType => _storiesTypeController.sink;
   final _storiesTypeController = StreamController<StoriesType>();
 
+  void dispose() {
+    closeStreams();
+  }
+
   void closeStreams() {
     _storiesTypeController.close();
     _articlesSubject.close();
@@ -39,18 +43,31 @@ class HackerNewsBloc {
   ];
 
   HackerNewsBloc() {
-    _getArticlesAndUpdate(_topIds);
+    _initializeArticle();
 
-    _storiesTypeController.stream.listen((storiesType) {
-      List<int> ids;
-      if (storiesType == StoriesType.newStories) {
-        ids = _newIds;
-      } else {
-        ids = _topIds;
-      }
-      _getArticlesAndUpdate(ids);
+    _storiesTypeController.stream.listen((storiesType) async {
+      _getArticlesAndUpdate(await _getIds(storiesType));
     });
   }
+
+//  List<int> _ids
+
+  Future<void> _initializeArticle() async {
+    _getArticlesAndUpdate(await _getIds(StoriesType.topStories));
+  }
+
+  Future<List<int>> _getIds(StoriesType type) async {
+    final partURL = type == StoriesType.topStories ? 'top' : 'new';
+    final url = '$_baseURL${partURL}stories.json';
+    final idRes = await http.get(url);
+    if (idRes.statusCode == 200) {
+      return parseTopStories(idRes.body).take(4).toList();
+    } else {
+      throw HackerNewApiError('Server Error');
+    }
+  }
+
+  static const _baseURL = 'https://hacker-news.firebaseio.com/v0/';
 
   _getArticlesAndUpdate(List<int> ids) async {
     _isLoadingSubject.add(true);
@@ -66,10 +83,18 @@ class HackerNewsBloc {
   }
 
   Future<Article> getArticle(int id) async {
-    final storyURL = 'https://hacker-news.firebaseio.com/v0/item/$id.json';
+    final storyURL = '${_baseURL}item/$id.json';
     final storyRes = await http.get(storyURL);
     if (storyRes.statusCode == 200) {
       return parseArticle(storyRes.body);
     }
+
+    throw HackerNewApiError("Article $id couldn't be fetched");
   }
+}
+
+class HackerNewApiError extends Error {
+  final String message;
+
+  HackerNewApiError(this.message);
 }
