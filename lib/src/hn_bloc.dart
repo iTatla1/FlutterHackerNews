@@ -8,6 +8,7 @@ import 'package:rxdart/rxdart.dart';
 enum StoriesType { topStories, newStories }
 
 class HackerNewsBloc {
+  HashMap<int, Article> _cachedArticles;
   Stream<List<Article>> get articles => _articlesSubject.stream;
   final _articlesSubject = BehaviorSubject<UnmodifiableListView<Article>>();
 
@@ -43,6 +44,7 @@ class HackerNewsBloc {
   ];
 
   HackerNewsBloc() {
+    _cachedArticles = HashMap<int, Article>();
     _initializeArticle();
 
     _storiesTypeController.stream.listen((storiesType) async {
@@ -72,6 +74,7 @@ class HackerNewsBloc {
   _getArticlesAndUpdate(List<int> ids) async {
     _isLoadingSubject.add(true);
     await _updateArticles(ids);
+//    for (_a)
     _articlesSubject.add(UnmodifiableListView(_articles));
     _isLoadingSubject.add(false);
   }
@@ -83,13 +86,16 @@ class HackerNewsBloc {
   }
 
   Future<Article> getArticle(int id) async {
-    final storyURL = '${_baseURL}item/$id.json';
-    final storyRes = await http.get(storyURL);
-    if (storyRes.statusCode == 200) {
-      return parseArticle(storyRes.body);
+    if (!_cachedArticles.containsKey(id)) {
+      final storyURL = '${_baseURL}item/$id.json';
+      final storyRes = await http.get(storyURL);
+      if (storyRes.statusCode == 200) {
+        _cachedArticles[id] = parseArticle(storyRes.body);
+      } else {
+        throw HackerNewApiError("Article $id couldn't be fetched");
+      }
     }
-
-    throw HackerNewApiError("Article $id couldn't be fetched");
+    return _cachedArticles[id];
   }
 }
 
