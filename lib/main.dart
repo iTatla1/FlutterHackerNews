@@ -2,6 +2,7 @@ import 'dart:collection';
 
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:hackernews/model/article.dart';
 import 'package:hackernews/src/hn_bloc.dart';
 import 'package:provider/provider.dart';
@@ -21,6 +22,7 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  static const primaryColor = Colors.white;
   @override
   Widget build(BuildContext context) {
     return Provider(
@@ -29,7 +31,18 @@ class _MyAppState extends State<MyApp> {
         title: 'Flutter Hacker News',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
-          primarySwatch: Colors.blue,
+//          textTheme: TextTheme(
+//
+//          ),
+          primaryColor: primaryColor,
+          scaffoldBackgroundColor: primaryColor,
+          textTheme: Theme.of(context).textTheme.copyWith(
+                headline1: GoogleFonts.roboto(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black,
+                ),
+              ),
           visualDensity: VisualDensity.adaptivePlatformDensity,
         ),
         home: MyHomePage(
@@ -64,10 +77,26 @@ class _MyHomePageState extends State<MyHomePage> {
     final bloc = Provider.of<HackerNewsBloc>(context);
     return Scaffold(
       appBar: AppBar(
+        elevation: 0,
+        actions: <Widget>[
+          Builder(
+            builder: (context) => IconButton(
+              icon: Icon(Icons.search),
+              onPressed: () {
+                showSearch<Article>(
+                  context: context,
+                  delegate: ArticleSearch(bloc.articles),
+                ).then((article) {
+                  _onTapped(article.url);
+                });
+              },
+            ),
+          )
+        ],
         title: Text(widget.title),
-        leading: LoadingInfo(
-          loadingStream: bloc.isLoading,
-        ),
+//        leading: LoadingInfo(
+//          loadingStream: bloc.isLoading,
+//        ),
       ),
       body: StreamBuilder<UnmodifiableListView<Article>>(
           stream: bloc.articles,
@@ -89,6 +118,8 @@ class _MyHomePageState extends State<MyHomePage> {
             return Container();
           }),
       bottomNavigationBar: BottomNavigationBar(
+        backgroundColor: Colors.black,
+        unselectedItemColor: Colors.grey[500],
         currentIndex: selectedTab,
         onTap: (value) {
           setState(() {
@@ -120,7 +151,10 @@ class _MyHomePageState extends State<MyHomePage> {
       =>
       ListTile(
         onTap: () => _onTapped(article.url),
-        title: Text(article.title ?? 'No Title Found'),
+        title: Text(
+          article.title ?? 'No Title Found',
+          style: Theme.of(context).textTheme.headline1,
+        ),
         subtitle: Text('By: ${article.by}'),
         trailing: Icon(Icons.launch),
       );
@@ -215,6 +249,104 @@ class _LoadingInfoState extends State<LoadingInfo>
             FontAwesomeIcons.hackerNewsSquare,
             color: Colors.orange,
           ),
+        );
+      },
+    );
+  }
+}
+
+class ArticleSearch extends SearchDelegate<Article> {
+  final Stream<UnmodifiableListView<Article>> articles;
+
+  ArticleSearch(this.articles);
+
+  @override
+  List<Widget> buildActions(BuildContext context) {
+    return [
+      IconButton(
+        icon: Icon(Icons.clear),
+        onPressed: () {
+          query = '';
+        },
+      ),
+    ];
+  }
+
+  @override
+  Widget buildLeading(BuildContext context) {
+    return IconButton(
+      icon: Icon(Icons.arrow_back),
+      onPressed: () {
+        close(context, null);
+      },
+    );
+  }
+
+  @override
+  Widget buildResults(BuildContext context) {
+    return StreamBuilder<UnmodifiableListView<Article>>(
+      stream: articles,
+      builder:
+          (context, AsyncSnapshot<UnmodifiableListView<Article>> snapshot) {
+        if (!snapshot.hasData || snapshot.hasError) {
+          return Center(
+            child: Text('No Data'),
+          );
+        }
+
+        final results = snapshot.data.where((element) =>
+            element.title.toLowerCase().contains(query.toLowerCase()));
+        return ListView.builder(
+          itemBuilder: (context, index) {
+            var result = results.toList()[index];
+            return ListTile(
+              onTap: () {
+                close(context, result);
+              },
+              title: Text(
+                result.title ?? 'No Title Here',
+              ),
+              leading: Icon(Icons.bookmark),
+              subtitle: Text(result.url),
+            );
+          },
+          itemCount: results.length,
+        );
+      },
+    );
+  }
+
+  @override
+  Widget buildSuggestions(BuildContext context) {
+//    return Container();
+    return StreamBuilder<UnmodifiableListView<Article>>(
+      stream: articles,
+      builder:
+          (context, AsyncSnapshot<UnmodifiableListView<Article>> snapshot) {
+        if (!snapshot.hasData || snapshot.hasError) {
+          return Center(
+            child: Text('No Data'),
+          );
+        }
+
+        final results = snapshot.data.where((element) =>
+            element.title.toLowerCase().contains(query.toLowerCase()));
+        return ListView.builder(
+          itemBuilder: (context, index) {
+            var result = results.toList()[index];
+            return ListTile(
+              onTap: () {
+                close(context, result);
+              },
+              title: Text(
+                result.title ?? 'No Title Here',
+                style: TextStyle(color: Colors.blue),
+              ),
+              leading: Icon(Icons.bookmark),
+              subtitle: Text(result.url),
+            );
+          },
+          itemCount: results.length,
         );
       },
     );
