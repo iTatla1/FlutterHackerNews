@@ -1,5 +1,7 @@
 import 'dart:collection';
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -7,6 +9,7 @@ import 'package:hackernews/model/article.dart';
 import 'package:hackernews/src/hn_bloc.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 import 'src/hn_bloc.dart';
 
@@ -149,51 +152,59 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Widget _buildItem(Article article) //=> Text('Debug');
       =>
-      ListTile(
-        onTap: () => _onTapped(article.url),
+      ExpansionTile(
+        key: Key(article.title),
         title: Text(
           article.title ?? 'No Title Found',
           style: Theme.of(context).textTheme.headline1,
         ),
         subtitle: Text('By: ${article.by}'),
-        trailing: Icon(Icons.launch),
+        children: [
+          Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: 24,
+            ),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: <Widget>[
+                    Text(
+                      "Comments: ${article.kids.length}",
+                      style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.launch),
+                      onPressed: () {
+                        _onTapped(article.url);
+                      },
+                    )
+                  ],
+                ),
+                Container(
+                  height: 200,
+                  child: WebView(
+                    initialUrl: article.url,
+                    javascriptMode: JavascriptMode.unrestricted,
+                    gestureRecognizers: Set()
+                      ..add(Factory<VerticalDragGestureRecognizer>(
+                          () => VerticalDragGestureRecognizer())),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       );
-//      Padding(
-//        key: Key(article.text),
-//        padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 8.0),
-//        child: ExpansionTile(
-//          children: <Widget>[
-//            Padding(
-//              padding:
-//                  const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
-//              child: Row(
-//                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-//                children: <Widget>[
-//                  Text(
-//                    "By: ${article.by}",
-//                    style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-//                  ),
-//                  IconButton(
-//                    icon: Icon(Icons.launch),
-//                    onPressed: () {
-//                      _onTapped(article.url);
-//                    },
-//                  )
-//                ],
-//              ),
-//            ),
-//          ],
-//          title: Text(
-//            article.title ?? "No Title Found",
-//            style: TextStyle(fontSize: 18),
-//          ),
-//        ),
-//      );
 
   _onTapped(String url) async {
     String fUrl = url;
     if (await canLaunch((fUrl))) {
-      await launch(fUrl);
+      Navigator.of(context).push(MaterialPageRoute(
+          builder: (context) => HNWebPage(
+                url: url,
+              )));
+      // await launch(fUrl);
     } else {
       debugPrint("Can not launch the url $fUrl");
     }
@@ -349,6 +360,33 @@ class ArticleSearch extends SearchDelegate<Article> {
           itemCount: results.length,
         );
       },
+    );
+  }
+}
+
+class HNWebPage extends StatelessWidget {
+  final String url;
+
+  const HNWebPage({Key key, this.url}) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Web Page'),
+      ),
+      body: WebView(
+        initialUrl: url,
+        javascriptMode: JavascriptMode.unrestricted,
+      ),
+      // floatingActionButton: FloatingActionButton(
+      //   backgroundColor: Colors.black,
+      //   child: IconButton(
+      //     icon: Icon(
+      //       Icons.favorite,
+      //       color: Colors.white,
+      //     ),
+      //   ),
+      // ),
     );
   }
 }
